@@ -11,7 +11,6 @@ import json
 import requests
 import urllib.request
 import os
-from pprint import pprint
 
 
 class Downloader:
@@ -24,15 +23,29 @@ class Downloader:
         else:
             self.load_repository(repository_url, branch)
 
-    def load_repository(self, url, branch=''):
-
-        # Check if URL contains branch name
-
+    @classmethod
+    def __get_branch_from_url(self, url, branch=''):
         if '/tree/' in url and not branch:
             branch = url.split('/tree/')[1]
             branch = branch.split('/')[0]
         else:
             branch = 'master'
+        return branch
+
+    @classmethod
+    def __get_raw_url(self, file_path, url, branch=''):
+        tmp_url = url.replace(
+            'https://api.github.com/repos/',
+            'https://raw.githubusercontent.com/')
+        tmp_url = tmp_url.split('/git/blobs/')[0]
+        tmp_url = tmp_url + '/' + branch + '/' + file_path
+        return tmp_url
+
+    def load_repository(self, url, branch=''):
+
+        # Check if URL contains branch name
+
+        branch = self.__get_branch_from_url(url, branch)
 
         # Convert URL to match GitHub API URI
 
@@ -55,10 +68,7 @@ class Downloader:
 
                 # Get RAW URL
 
-                tmp += [i['url'].replace('https://api.github.com/repos/',
-                                         'https://raw.githubusercontent.com/')]
-                tmp[-1] = tmp[-1].split('/git/blobs/')[0]
-                tmp[-1] = tmp[-1] + '/' + branch + '/' + tmp[0]
+                tmp += [self.__get_raw_url(tmp[0], i['url'], branch)]
                 output.append(tmp)
             else:
                 location[i['path']] = k
@@ -69,7 +79,7 @@ class Downloader:
 
         self.repo_url = url
 
-    def mkdirs(self, path):
+    def __mkdirs(self, path):
 
         # Make directory if not exist
 
@@ -85,8 +95,7 @@ class Downloader:
 
         # Make directory if not exist
 
-        if not os.path.isdir(destination):
-            os.makedirs(destination)
+        self.__mkdirs(destination)
 
         # Find Folder Position
 
@@ -110,5 +119,5 @@ class Downloader:
         for i in self.files[start:]:
             if recursive or i[0].split(target_folder)[1].count('/') \
                     <= 1:
-                self.mkdirs(destination + '/' + os.path.dirname(i[0]))
+                self.__mkdirs(destination + '/' + os.path.dirname(i[0]))
                 urllib.request.urlretrieve(i[1], destination + '/' + i[0])
